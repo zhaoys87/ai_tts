@@ -2,3 +2,4 @@ pyttsx3
 py3-tts
 gTTS
 TTS
+azure-cognitiveservices-speech

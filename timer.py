@@ -1,3 +1,9 @@
+'''
+实现time装饰器
+author: yszhao8706@gmail.com
+date: 2024-05-24
+'''
+
 import time
 from functools import wraps
 

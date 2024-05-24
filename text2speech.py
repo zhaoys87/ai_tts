@@ -1,11 +1,12 @@
 '''
 实现tts功能
-author: zhaoys@whu.edu.cn
+author: yszhao8706@gmail.com
 date: 2024-05-24
 '''
 from timer import timer
 import pyttsx3
 from gtts import gTTS
+from TTS.api import TTS
 
 
 @timer
@@ -13,7 +14,7 @@ def text_to_speech_ttsx3(text, outfile="", lang=""):
     '''
     使用pyttsx3实现tts功能
     有点：支持多种语音引擎，支持多种语音格式，支持离线且能快速上手
-    不足：合成的语音有点生硬，不够自然, 速度5s
+    不足：合成的语音有点生硬，不够自然, 速度4s
     '''
     engine = pyttsx3.init()
     if len(lang) > 0:
@@ -34,14 +35,58 @@ def text_to_speech_ttsx3(text, outfile="", lang=""):
 def text_to_speech_gtts(text, outfile, lang='en'):
     '''
     使用gtts实现tts功能
-    优点：简单易用、支持多种语言、合成效果良好，能进行Tokenization（可不限长度）
-    不足：合成效果不够自然，速度较慢43s
+    优点：简单易用、支持多种语言，能进行Tokenization（可不限长度）
+    不足：合成效果不够自然，速度较慢103s
     google有cloud版本，基于深度学习做的效果较好，但是需要收费
     '''
     text = text.replace('\n', ' ')
     tts = gTTS(text=text, lang=lang)
     tts.save(outfile)
 
+
+@timer
+def text_to_speech_coqui(text, outfile, ref_audios=[], lang='en', model=''):
+    '''
+    使用coqui.ai xtts功能(TTS库)，可支持Tacotron 2、DeepVoice3等深度学习模型，https://docs.coqui.ai/en/latest/
+    优点：可进行语音clone（定制），多语言支持，支持streaming推理，可Finetuning，效果较好
+    不足：速度慢，需要GPU加速， 1241s
+    '''
+    ## xtts_v2 is non-commercial
+    if len(model) == 0:
+        # 断句偶尔不流畅，速度慢1241s
+        tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
+
+        # generate speech by cloning a voice using default settings
+        tts.tts_to_file(text=text,
+                        file_path=outfile,
+                        speaker_wav=ref_audios,
+                        language=lang,
+                        split_sentences=True
+                        )
+    ## tacotron2
+    elif "tacotron2" in model:
+        # speed生成112s，tts_with_vc_to_file风格迁移太慢（>1h,提前中断）
+        # 
+        tts = TTS("tts_models/zh-CN/baker/tacotron2-DDC-GST", progress_bar=True, gpu=False)
+        # tts.tts_with_vc_to_file(text,
+        #                         speaker_wav=ref_audios,
+        #                         file_path=outfile
+        #                         )
+        ## speed生成120s，音色不稳定，且有时候会有噪音，断句比较正常
+        tts.tts_to_file(text,file_path=outfile)
+    ## bark
+    elif "bark" in model:
+        # need root to run, 需要根目录权限放弃
+        pass
+        tts = TTS("tts_models/multilingual/multi-dataset/bark", progress_bar=True, gpu=False)
+        # generate speech by cloning a voice using default settings
+        tts.tts_to_file(text=text,
+                        file_path=outfile,
+                        speaker_wav=ref_audios,
+                        language=lang,
+                        split_sentences=True
+                        )
+    
 
 
 if __name__ == "__main__":
@@ -70,4 +115,11 @@ if __name__ == "__main__":
     text_to_speech_ttsx3(txt, "hello_ttsx3.mp3", lang='zh_CN')
     # text_to_speech_ttsx3("hello world", "hello.mp3")
 
-    # text_to_speech_gtts(txt, "hello_gtts.mp3", lang='zh-cn')
+    text_to_speech_gtts(txt, "hello_gtts.mp3", lang='zh-cn')
+
+    ref_audios = ['16eb9cc4ee024ca08837bd646d34f231.mp3']
+    # text_to_speech_coqui(txt, "hello_coqui_xttsv2.mp3", ref_audios, lang='zh-cn')
+    model="bark"
+    # print(TTS().list_models())
+    text_to_speech_coqui(txt, "hello_coqui_{}.mp3".format(model), 
+                         ref_audios[0], lang='zh-cn', model=model)
